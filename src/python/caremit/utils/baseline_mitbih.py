@@ -1,11 +1,12 @@
 """
-Script to read labeled ECG data (csv format), and train a model from that.
+Utils to read labeled ECG data (csv), and train a model from that.
 
 Credits to https://github.com/CVxTz/ECG_Heartbeat_Classification
 """
 
-import pandas as pd
 import numpy as np
+import pandas as pd
+from pathlib import Path
 
 from keras import optimizers, losses, activations, models
 from keras.callbacks import ModelCheckpoint, EarlyStopping, LearningRateScheduler, ReduceLROnPlateau
@@ -13,10 +14,13 @@ from keras.layers import Dense, Input, Dropout, Convolution1D, MaxPool1D, Global
     concatenate
 from sklearn.metrics import f1_score, accuracy_score
 
+DATA = Path("~/cloudfiles/code/Data/kaggle-ECG-Heartbeat-Categorization-Dataset/").expanduser()
 
-df_train = pd.read_csv("../input/mitbih_train.csv", header=None)
+
+df_train = pd.read_csv(DATA / "mitbih_train.csv", header=None)
+
 df_train = df_train.sample(frac=1)
-df_test = pd.read_csv("../input/mitbih_test.csv", header=None)
+df_test = pd.read_csv(DATA / "mitbih_test.csv", header=None)
 
 Y = np.array(df_train[187].values).astype(np.int8)
 X = np.array(df_train[list(range(187))].values)[..., np.newaxis]
@@ -56,23 +60,35 @@ def get_model():
     model.summary()
     return model
 
-model = get_model()
-file_path = "baseline_cnn_mitbih.h5"
-checkpoint = ModelCheckpoint(file_path, monitor='val_acc', verbose=1, save_best_only=True, mode='max')
-early = EarlyStopping(monitor="val_acc", mode="max", patience=5, verbose=1)
-redonplat = ReduceLROnPlateau(monitor="val_acc", mode="max", patience=3, verbose=2)
-callbacks_list = [checkpoint, early, redonplat]  # early
 
-model.fit(X, Y, epochs=1000, verbose=2, callbacks=callbacks_list, validation_split=0.1)
-model.load_weights(file_path)
+def run_model(model, model_path=None):
+    file_path = "/home/azureuser/cloudfiles/code/models/baseline_cnn_mitbih"
 
-pred_test = model.predict(X_test)
-pred_test = np.argmax(pred_test, axis=-1)
+    checkpoint = ModelCheckpoint(file_path, monitor='val_acc', verbose=1, save_best_only=True, mode='max')
+    early = EarlyStopping(monitor="val_acc", mode="max", patience=5, verbose=1)
+    redonplat = ReduceLROnPlateau(monitor="val_acc", mode="max", patience=3, verbose=2)
+    callbacks_list = [checkpoint, early, redonplat]  # early
 
-f1 = f1_score(Y_test, pred_test, average="macro")
+    model.fit(X, Y, epochs=1, verbose=2, callbacks=callbacks_list, validation_split=0.1)
+    model.load_weights(file_path)
+    model.save()
 
-print("Test f1 score : %s "% f1)
+    pred_test = model.predict(X_test)
+    pred_test = np.argmax(pred_test, axis=-1)
 
-acc = accuracy_score(Y_test, pred_test)
+    f1 = f1_score(Y_test, pred_test, average="macro")
 
-print("Test accuracy score : %s "% acc)
+    print("Test f1 score : %s "% f1)
+
+    acc = accuracy_score(Y_test, pred_test)
+
+    print("Test accuracy score : %s "% acc)
+
+
+def main():
+    model = get_model()
+    run_model(model=model)
+
+
+if __name__ == "__main__":
+    main()
