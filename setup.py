@@ -9,6 +9,7 @@ setup(name='caremit',
       packages=find_packages(subfolder),
       package_dir={"": subfolder},
       install_requires=[
+            'ipykernel',
             'toolz',
             'wfdb',
             'pandas',
