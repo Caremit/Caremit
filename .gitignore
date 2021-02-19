@@ -133,3 +133,9 @@ dmypy.json
 
 # temporary files
 /local
+
+# macos
+.DS_STORE
+
+# vscode
+.vscode
