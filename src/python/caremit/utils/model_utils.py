@@ -17,28 +17,23 @@ DATA = Path("~/cloudfiles/code/Data/kaggle-ECG-Heartbeat-Categorization-Dataset/
 
 
 def load_data(filepath: str):
-    """Returns: A four-tuple of numpy arrays:
-    signal_data_train, label_data_train, signal_data_full, label_data_full"""
-    df_full = pd.read_csv(filepath, header=None)
-    print('Full df shape:', df_full.shape)
+    """Loads csv data and split it into a signal and a label numpy array,
+    respectively."""
+    df = pd.read_csv(filepath, header=None)
+    print('Df shape:', df.shape)
 
     # Ensure data is stored as expected: labels are stored in the last column (column 188)
-    if not df_full.shape[1] == 188:
-        print('Data not formatted as expected, might produce bogus!!')
+    if not df.shape[1] == 188:
+        raise ValueError('Data not formatted as expected, might produce bogus!!')
 
-    # use data subset for training
-    df_train = df_full.sample(frac=0.1, random_state=5)  # random seed for reproducibility
-    print('Training df shape:', df_train.shape)
+    signal_data = df[list(range(187))].to_numpy()
 
-    # create np arrays
-    signal_data_train = df_train[list(range(187))].to_numpy()
-    signal_data_full = df_full[list(range(187))].to_numpy()
+    if not np.all(df[187] < 255):
+        raise ValueError('Label codes too large, buggy data??')
 
-    assert np.all(df_full[187] < 255), print('Label codes too large, buggy data??')
-    label_data_train = df_train[187].to_numpy().astype(np.int8)
-    label_data_full = df_full[187].to_numpy().astype(np.int8)
+    label_data = df[187].to_numpy().astype(np.int8)
 
-    return signal_data_train, label_data_train, signal_data_full, label_data_full
+    return signal_data, label_data
 
 
 def create_cnn(num_features: int = None) -> models.Model:
