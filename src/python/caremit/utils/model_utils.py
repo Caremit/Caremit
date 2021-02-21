@@ -7,6 +7,7 @@ Credits to https://github.com/CVxTz/ECG_Heartbeat_Classification
 import numpy as np
 import pandas as pd
 from pathlib import Path
+from typing import Tuple
 
 from keras import optimizers, losses, activations, models
 from keras.callbacks import ModelCheckpoint, EarlyStopping, ReduceLROnPlateau
@@ -16,15 +17,26 @@ from sklearn.metrics import f1_score, accuracy_score
 DATA = Path("~/cloudfiles/code/Data/kaggle-ECG-Heartbeat-Categorization-Dataset/").expanduser()
 
 
-def load_data(filepath: str):
+def load_data(filepath: str, fraction: float = 1,
+              fraction_seed: int = None) -> Tuple[np.array, np.array]:
     """Loads csv data and split it into a signal and a label numpy array,
-    respectively."""
+    respectively.
+    Args:
+        fraction: fraction of csv data to load, allows to speed up testing.
+              Set to 1 (full data) by default
+        fraction_seed: random seed to ensure same subset of data across tests
+            with same fraction"""
     df = pd.read_csv(filepath, header=None)
-    print('Df shape:', df.shape)
 
     # Ensure data is stored as expected: labels are stored in the last column (column 188)
     if not df.shape[1] == 188:
         raise ValueError('Data not formatted as expected, might produce bogus!!')
+
+    # Reduce data for faster training during testing
+    kwargs = {'frac': fraction}
+    if fraction_seed:
+        kwargs['random_state'] = fraction_seed
+        df = df.sample(**kwargs)
 
     signal_data = df[list(range(187))].to_numpy()
 
@@ -107,14 +119,44 @@ def train_model(model: models.Model,
               validation_split=0.1)
 
 
-def test_model(model: models.Model, test_signal_data: np.array,
-               true_label_data: np.array):
-    confidence_levels = model.predict(test_signal_data)
-    predicted_labels = np.argmax(confidence_levels, axis=-1)
+def eval_prediction(confidence_levels, true_labels, print_all_wrong=False):
+    """Inspect model prediction results"""
+    df = pd.DataFrame(confidence_levels)
+    df['predicted_label'] = df.idxmax(axis=1)
+    df['true_label'] = true_labels
+    df['prediction_correct'] = df['predicted_label'] == df['true_label']
+    df['max_confidence'] = df \
+                               .loc[:, list(range(5))] \
+        .max(axis=1)
 
-    # verify prediction quality
-    f1 = f1_score(y_true=true_label_data, y_pred=predicted_labels, average='macro')
-    print(f"F1 score: {f1}")
+    incorrect_df = df.loc[~df['prediction_correct']].copy()
+    print(f'Overall correctness: {(1 - len(incorrect_df) / len(df)) * 100:5.2f} %')
 
-    accuracy = accuracy_score(y_true=true_label_data, y_pred=predicted_labels)
-    print(f"Accuracy score: {accuracy}")
+    print('\nCorrectness per category:')
+
+    def fm(x):
+        return pd.Series(data=len(x.loc[x['prediction_correct']]) / len(x),
+                         index=['corr %'])
+
+    res = df.groupby('predicted_label').apply(fm)
+    print(res)
+
+    print('\nHighest confidence for wrong predictions per category:')
+    dd = incorrect_df \
+        .loc[:, ['predicted_label', 'true_label', 'max_confidence']] \
+        .copy()
+
+    print(dd.groupby(['predicted_label', 'true_label']).max())
+
+    # show all confidence distribution for wrong predictions
+    if print_all_wrong:
+        print('\nConfidence distribution for wrong predictions:')
+        sorted_df = incorrect_df \
+            .sort_values(by='max_confidence', ascending=False)
+        sorted_df.reset_index(inplace=True, drop=True)
+
+        for row in sorted_df.itertuples():
+            s = f'{str(row[0]).rjust(4)} '
+            s += ', '.join([f'{row[idx]:5.9f}' for idx in range(1, 6)])
+            s += f'{row.predicted_label}, {row.true_label}, {row.max_confidence:5.9f}'
+            print(s)
