@@ -11,11 +11,9 @@ import os
 from werkzeug.utils import secure_filename
 import tempfile
 from io import StringIO, BytesIO
-
-ALLOWED_EXTENSIONS = {'csv'}
-def allowed_file(filename):
-    return '.' in filename and \
-        filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+import wfdb
+from pathlib import Path
+from caremit.preprocessing.kachuee_2018 import preprocess_kachuee_2018
 
 app = Flask(__name__)
 app.config.from_object(app_config)
@@ -62,50 +60,46 @@ def logout():
         app_config.AUTHORITY + "/oauth2/v2.0/logout" +
         "?post_logout_redirect_uri=" + url_for("index", _external=True))
 
-# taken from https://stackoverflow.com/questions/47160211/why-doesnt-tempfile-spooledtemporaryfile-implement-readable-writable-seekable
-class MySpooledTempfile(tempfile.SpooledTemporaryFile):                                                                                
-    @property                                                                                                                          
-    def readable(self):                                                                                                                
-        return self._file.readable                                                                                                     
-
-    @property                                                                                                                          
-    def writable(self):                                                                                                                
-        return self._file.writable                                                                                                     
-
-    @property                                                                                                                          
-    def seekable(self):                                                                                                                
-        return self._file.seekable 
-
 @app.route("/machinelearning", methods=['POST'])
 def machinelearning():
     if not session.get("user"):
         return redirect(url_for("landing"))
 
     print(request.url)
-    print(request.files)
+    print("request.files", request.files)
     # check if the post request has the file part
     if 'file' not in request.files:
         flash('No file part')
         print("No file part")
         return redirect(url_for("index"))
-    file = request.files['file']
+    files = request.files.getlist("file")
+    print("files", files)
     # if user does not select file, browser also
     # submit an empty part without filename
 
-    if not file or file.filename == '':
-        flash('No selected file')
-        print("No selected file")
-        return redirect(url_for("index"))
-    
-    if not allowed_file(file.filename):
-        flash('Please choose a file with one of the following file-ending: ' + ", ".join(sorted(ALLOWED_EXTENSIONS)))
-        print('Please choose a file with one of the following file-ending: ' + ", ".join(sorted(ALLOWED_EXTENSIONS)))
+    if (len(files) != 2 
+        or {Path(file.filename).suffix for file in files} != {'.dat', '.hea'}
+        or len({Path(file.filename).stem for file in files}) != 1):
+
+        print("Nead exactly one XXX.dat file and one XXX.hea file where XXX needs to be the same.")
         return redirect(url_for("index"))
 
     # taken from https://github.com/CVxTz/ECG_Heartbeat_Classification/blob/master/code/baseline_mitbih.py#L11-L19
-    df = pd.read_csv(BytesIO(file.read()), header=None)
-    data = df.values[..., np.newaxis]
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        for file in files:
+            filename = secure_filename(Path(file.filename).name)
+            filepath = os.path.join(tmpdirname, filename)
+            file.save(filepath)
 
+        # file path without extension is guaranteed to be the same for both files
+        prefix = os.path.splitext(filepath)[0]
+        record = wfdb.rdrecord(prefix)
+
+    single_signal = record.p_signal[:, 0]
+    fs = record.fs
+    segments, start_end = preprocess_kachuee_2018(single_signal, fs, heartbeat_position="left")
+    data = segments[..., np.newaxis]
+    
     token = _get_token_from_cache(app_config.SCOPE)
     if not token:
         # not authorized, hence going back to login page
