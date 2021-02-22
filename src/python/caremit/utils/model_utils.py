@@ -12,7 +12,10 @@ from typing import List, Tuple
 from keras import optimizers, losses, activations, models
 from keras.callbacks import ModelCheckpoint, EarlyStopping, ReduceLROnPlateau
 from keras.layers import Dense, Input, Dropout, Convolution1D, MaxPool1D, GlobalMaxPool1D
+from livelossplot import PlotLossesKeras
 from sklearn.metrics import f1_score, accuracy_score
+from sklearn.utils import class_weight
+
 
 DATA = Path("~/cloudfiles/code/Data/kaggle-ECG-Heartbeat-Categorization-Dataset/").expanduser()
 
@@ -58,7 +61,7 @@ def load_data(filepath: str, fraction: float = 1,
     kwargs = {'frac': fraction}
     if fraction_seed:
         kwargs['random_state'] = fraction_seed
-    df = df.sample(**kwargs)  # shuffle to avoid sorted input!
+    df = df.sample(**kwargs)  # shuffle to guarantee randomized order!
 
     signal_data = df[list(range(187))].to_numpy()
 
@@ -113,32 +116,64 @@ def train_model(model: models.Model,
                 signal_data: np.array,
                 label_data: np.array,
                 file_path: str = None,
-                epochs: int = None):
-    """ file_path: specify where to save the model for future use"""
-    early = EarlyStopping(monitor="val_accuracy",
-                          mode="max",
-                          patience=5,
-                          verbose=1)
-    redonplat = ReduceLROnPlateau(monitor="val_accuracy",
-                                  mode="max",
-                                  patience=3,
-                                  verbose=2)
-    callback_list = [early, redonplat]
+                epochs: int = None,
+                add_class_weights=False,
+                plot_progress_no_callbacks=False):
+    """
+    Args:
+        file_path: specify where to save the model for future use
+        add_class_weights: if set, adds 'balanced' class weights to account
+            for skewed data (see tensorflow docs)
+        plot_progress_no_callbacks: if set, detailed training progress stats
+            are shown during training, but all other callbacks are deactivated
+            due to incompatibility
+    """
+    if not plot_progress_no_callbacks:
+        early = EarlyStopping(monitor="val_accuracy",
+                              mode="max",
+                              patience=5,
+                              verbose=1)
+        redonplat = ReduceLROnPlateau(monitor="val_accuracy",
+                                      mode="max",
+                                      patience=3,
+                                      verbose=2)
 
-    if file_path:
-        checkpoint = ModelCheckpoint(file_path,
-                                     monitor='val_accuracy',
-                                     verbose=1,
-                                     save_best_only=True,
-                                     mode='max')
-        callback_list.append(checkpoint)
+        callbacks = [early, redonplat]
 
-    model.fit(signal_data,
-              label_data,
-              epochs=epochs or 10,
-              verbose=2,
-              callbacks=callback_list,
-              validation_split=0.1)
+        if file_path:
+            checkpoint = ModelCheckpoint(file_path,
+                                         monitor='val_accuracy',
+                                         verbose=1,
+                                         save_best_only=True,
+                                         mode='max')
+            callbacks.append(checkpoint)
+    else:
+        callbacks = [PlotLossesKeras()]
+
+    kwargs = {'x': signal_data,
+              'y': label_data,
+              'batch_size': 256,
+              'epochs': epochs or 10,
+              'callbacks': callbacks,
+              'validation_split': 0.1}
+
+    if add_class_weights:
+        classes = np.sort(np.unique(label_data))
+        class_weights = class_weight.compute_class_weight(
+            class_weight='balanced',
+            classes=classes,
+            y=label_data)
+        weight_dict = dict(zip(np.sort(np.unique(label_data)), class_weights))
+
+        # In case classes are not contiguous starting from 0, fill those
+        # weights for compatibility with tensorflow
+        for i in range(max(weight_dict.keys())):
+            if i not in weight_dict:
+                weight_dict[i] = 0
+
+        kwargs['class_weight'] = weight_dict
+
+    model.fit(**kwargs)
 
 
 def eval_prediction(confidence_levels, true_labels, print_all_wrong=False):
