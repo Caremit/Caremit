@@ -10,6 +10,12 @@ In order to install this package in editable mode, do the following:
 
 enjoy :)
 
+# Deployment
+To deploy a trained model to a public azure endpoint:
+1. be in the lucky position that someone set up a cozy azureml environment for you
+2. Um, are you still there?
+3. find out where the model file is located e.g. /path/to/model/saved_model.pb
+4. run the deploy_model.py script `python deploy_model.py /path/to/model  # do not reference the file, only the folder`
 
 # Inspiration
 
@@ -113,3 +119,4 @@ azure authentication
 
 Setup azure active directory B2C is necessarily a manual process (limitation of azure). You need to follow this tutorial
 - https://docs.microsoft.com/en-us/azure/active-directory-b2c/tutorial-create-tenant
+
