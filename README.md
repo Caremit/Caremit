@@ -104,3 +104,8 @@ azure authentication
 - [aad_oauth, official flutter package](https://pub.dev/packages/aad_oauth)
 - [msal_flutter, official flutter package](https://pub.dev/packages/msal_flutter)
 - [blogpost](https://www.detroitdave.dev/2020/04/simple-azure-b2c-flutter.html), [github](https://github.com/dwhiteddsoft/flutter-azure-b2c-appauth)
+- [another blogpost](https://medium.com/flutter-community/flutter-azure-authentication-with-ad-b2c-8b76c81dd48e), [github](https://github.com/WJayesh/prod_app)
+
+
+Setup azure active directory B2C is necessarily a manual process (limitation of azure). You need to follow this tutorial
+- https://docs.microsoft.com/en-us/azure/active-directory-b2c/tutorial-create-tenant
