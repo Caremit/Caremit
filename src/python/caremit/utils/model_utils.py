@@ -261,7 +261,7 @@ def plot_highest_conf(df, signal_data):
         return series
 
     overview = df \
-                   .loc[:, ['predicted_label', 'confidence', 'prediction_correct']] \
+        .loc[:, ['predicted_label', 'confidence', 'prediction_correct']] \
         .groupby('predicted_label') \
         .apply(f)
     print('Overview:\n', overview)
