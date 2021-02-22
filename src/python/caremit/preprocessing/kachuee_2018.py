@@ -11,7 +11,7 @@ def minmax_to_01(x, **kwargs):
 def make_odd(x):
     return x if x % 2 != 0 else x + 1
 
-def preprocess_kachuee_2018(single_signal, fs, fixed_segment_len = 127):
+def preprocess_kachuee_2018(single_signal, fs, fixed_segment_len = 187, heartbeat_position="left"):
     """ Applies the preprocessing of the paper Kachuee et.al. 2018 https://arxiv.org/pdf/1805.00794.pdf
 
     Finds heartbeats, cuts out a segment of the signal around each heartbeat,
@@ -21,12 +21,14 @@ def preprocess_kachuee_2018(single_signal, fs, fixed_segment_len = 127):
         single_signal (numpy.array): signal data as float values in a 1-dimensional numpy array
         fs (int): sampling frequency of `single_signal`
         fixed_segment_len (int, optional): segments will have this specified length
+        heart_beat_position (string): optional, either "left" (default) or "center".
 
     Returns:
         segments, start_end:
             two 2D arrays, the first, `segments`, contains the segments on each row (one segment for each heartbeat)
             the second, `start_end`, contains two columns start and end which specify the indices of the segment within the original data.
     """
+    heartbeat_position = heartbeat_position.lower()
     sample_factor = round(fs/125)
     signal_downsampled = decimate(single_signal, sample_factor)
     
@@ -47,11 +49,21 @@ def preprocess_kachuee_2018(single_signal, fs, fixed_segment_len = 127):
     _starts = []
     _ends = []
     for peaks_indexes in peaks_windowed_indexes:
-        T = np.median(np.diff(peaks_indexes))
-        window_size = make_odd(round(T*1.2))
+        if len(peaks_indexes) <= 1:
+            continue # TODO improve over this, as it may indeed be important to look at all data
 
-        start = np.maximum(0, peaks_indexes - window_size//2)
-        end = np.minimum(len(linear), peaks_indexes + window_size//2 + 1)
+        T = np.median(np.diff(peaks_indexes))
+        window_size = round(T*1.2)
+        if heartbeat_position == "center":
+            window_size = make_odd(window_size)
+            start = np.maximum(0, peaks_indexes - window_size//2)
+            end = np.minimum(len(linear), peaks_indexes + window_size//2 + 1)
+        elif heartbeat_position == "left":
+            start = peaks_indexes
+            end = np.minimum(len(linear), peaks_indexes + window_size)
+        else:
+            raise ValueError(f"Got unsupported heartbeat_position: '{heartbeat_position}'")
+
         # for finding the segments in the original data, we provide start and end indices resampled to the original timeseries
         _starts += list(start * sample_factor)
         _ends += list(end * sample_factor)
