@@ -36,26 +36,27 @@
       <div class="col-lg-5 my-auto">
         <div class="header-content mx-auto">
           <h1 class="mb-5">Welcome {{ user.get("name") }}!</h1>
-          <p class="mb-5">Here is your individual analysis</p>
-
+          <p class="mb-5">Let's analyze your heartbeats</p>
           <form action="/machinelearning" method=post enctype=multipart/form-data>
             <input type=file name=file>
             <input type=submit value=Upload>
           </form>
           <!-- <form action="/machinelearning" method="POST" enctype="multipart/form-data">
             <div class="custom-file">
-              <input type="file" class="custom-file-input" onchange="this.form.submit();" id="validatedCustomFile" required size = '50'>
+              <input type="file" class="custom-file-input" onchange="this.form.submit();" id="validatedCustomFile" required>  
               <input type=submit value=Upload>
-              <label class="custom-file-label" for="validatedCustomFile">Upload more files...</label>
+              <label class="custom-file-label" for="validatedCustomFile">Upload csv ...</label>
               <div class="invalid-feedback">Example invalid custom file feedback</div>
             </div>
           </form> -->
-          <!-- <button type="button" class="btn btn-primary" onclick="location.href='/machinelearning'">Upload More</button> -->
+          <!-- <button type="button" class="btn btn-primary" onclick="location.href='/machinelearning'">Upload</button> -->
         </div>
       </div>
       
       <div class="col-lg-7 my-auto">
-        <pre>{{ result |tojson(indent=4) }}</pre> <!-- Just a generic json viewer -->
+        <img src="https://images.unsplash.com/photo-1530026186672-2cd00ffc50fe?ixid=MXwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHw%3D&ixlib=rb-1.2.1&auto=format&fit=crop&w=2250&q=80" class="img-thumbnail" alt="">
+        <!-- <img src="https://images.unsplash.com/photo-1560582861-45078880e48e?ixid=MXwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHw%3D&ixlib=rb-1.2.1&auto=format&fit=crop&w=634&q=80" class="img-thumbnail" alt=""> -->
+        
       </div>
     </div>
   </div>
