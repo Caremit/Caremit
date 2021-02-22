@@ -16,6 +16,8 @@ from livelossplot import PlotLossesKeras
 from sklearn.metrics import f1_score, accuracy_score
 from sklearn.utils import class_weight
 
+# move to separate module eventually
+from matplotlib import pyplot as plt
 
 DATA = Path("~/cloudfiles/code/Data/kaggle-ECG-Heartbeat-Categorization-Dataset/").expanduser()
 
@@ -176,44 +178,100 @@ def train_model(model: models.Model,
     model.fit(**kwargs)
 
 
-def eval_prediction(confidence_levels, true_labels, print_all_wrong=False):
-    """Inspect model prediction results"""
+def test_model(model, test_signal_data, true_label_data):
+    confidence_levels = model.predict(test_signal_data)
+    predicted_labels = np.argmax(confidence_levels, axis=-1)
+
+    # verify prediction quality
+    f1 = f1_score(y_true=true_label_data, y_pred=predicted_labels, average='macro')
+    print(f"F1 score: {f1}")
+
+    accuracy = accuracy_score(y_true=true_label_data, y_pred=predicted_labels)
+    print(f"Accuracy score: {accuracy}")
+
+    return confidence_levels
+
+
+# move to separate module eventually
+def get_prediction_df(confidence_levels: np.array,
+                      true_labels: np.array) -> pd.DataFrame:
     df = pd.DataFrame(confidence_levels)
     df['predicted_label'] = df.idxmax(axis=1)
     df['true_label'] = true_labels
     df['prediction_correct'] = df['predicted_label'] == df['true_label']
-    df['max_confidence'] = df \
-                               .loc[:, list(range(5))] \
+    df['confidence'] = df \
+        .loc[:, list(range(5))] \
         .max(axis=1)
+    return df
 
+
+def eval_prediction(df, print_all_wrong=False):
+    """Inspect model prediction results"""
     incorrect_df = df.loc[~df['prediction_correct']].copy()
     print(f'Overall correctness: {(1 - len(incorrect_df) / len(df)) * 100:5.2f} %')
 
     print('\nCorrectness per category:')
 
     def fm(x):
-        return pd.Series(data=len(x.loc[x['prediction_correct']]) / len(x),
-                         index=['corr %'])
+        series = pd.Series(data=len(x.loc[x['prediction_correct']]) / len(x),
+                           index=['corr %'])
 
-    res = df.groupby('predicted_label').apply(fm)
+    res = df.groupby('true_label').apply(fm)
     print(res)
 
     print('\nHighest confidence for wrong predictions per category:')
-    dd = incorrect_df \
-        .loc[:, ['predicted_label', 'true_label', 'max_confidence']] \
-        .copy()
-
-    print(dd.groupby(['predicted_label', 'true_label']).max())
+    res = incorrect_df \
+              .loc[:, ['predicted_label', 'true_label', 'confidence']] \
+        .groupby(['predicted_label', 'true_label']) \
+        .max()
+    print(res)
 
     # show all confidence distribution for wrong predictions
     if print_all_wrong:
         print('\nConfidence distribution for wrong predictions:')
         sorted_df = incorrect_df \
-            .sort_values(by='max_confidence', ascending=False)
+            .sort_values(by='confidence', ascending=False)
         sorted_df.reset_index(inplace=True, drop=True)
 
         for row in sorted_df.itertuples():
             s = f'{str(row[0]).rjust(4)} '
             s += ', '.join([f'{row[idx]:5.9f}' for idx in range(1, 6)])
-            s += f'{row.predicted_label}, {row.true_label}, {row.max_confidence:5.9f}'
+            s += f', {row.predicted_label}, {row.true_label}, {row.max_confidence:5.9f}'
             print(s)
+
+
+BEAT_MAP = {
+    0: 'Normal beat (N)',
+    1: 'Premature or ectopic supraventricular beat (S)',
+    2: 'Premature ventricular contraction (V)',
+    3: 'Fusion of ventricular and normal beat (F)',
+    4: 'Unclassifiable beat (Q)'
+}
+
+
+def plot_highest_conf(df, signal_data):
+    """Plots the signal with the highest confidence per encountered
+    category, if the prediction was correct.
+    Raises if highest prediction per category was incorrect."""
+
+    def f(x):
+        max_idx = x['confidence'].idxmax()
+        series = x.loc[max_idx, :]
+        series['max_idx'] = max_idx
+        return series
+
+    overview = df \
+                   .loc[:, ['predicted_label', 'confidence', 'prediction_correct']] \
+        .groupby('predicted_label') \
+        .apply(f)
+    print('Overview:\n', overview)
+
+    for row in overview.itertuples():
+        print(f"\nRepresentative signal for category '{BEAT_MAP[row.predicted_label]}'")
+        if not row.prediction_correct is True:
+            print('ERROR: got highest confidence for wrong prediction!')
+            continue
+
+        signal = signal_data[row.max_idx]
+        plt.plot(signal)
+        plt.show()
