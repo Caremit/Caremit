@@ -94,6 +94,10 @@ We even have detailed documentation about everything by looking into `wfdb.plot.
         parameter is required for plotting ECG grids.
 ```
 
+# App Development with Flask
+
+Our flask app follows a tutorial given by Azure https://docs.microsoft.com/en-us/azure/active-directory-b2c/tutorial-web-app-python?tabs=app-reg-ga in order to connect with Azure AD B2C. The style is adapted from the MIT-licensed open template ["new-age"](https://startbootstrap.com/theme/new-age).
+
 # Apps Development with Flutter
 
 login demos which somehow worked and looked okay:
