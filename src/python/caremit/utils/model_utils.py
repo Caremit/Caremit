@@ -1,13 +1,13 @@
 """
 Utils to read labeled ECG data (csv), and train a model from that.
 
-Credits to https://github.com/CVxTz/ECG_Heartbeat_Classification
+Inspired by https://github.com/CVxTz/ECG_Heartbeat_Classification
 """
 
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from typing import Tuple
+from typing import List, Tuple
 
 from keras import optimizers, losses, activations, models
 from keras.callbacks import ModelCheckpoint, EarlyStopping, ReduceLROnPlateau
@@ -18,25 +18,47 @@ DATA = Path("~/cloudfiles/code/Data/kaggle-ECG-Heartbeat-Categorization-Dataset/
 
 
 def load_data(filepath: str, fraction: float = 1,
-              fraction_seed: int = None) -> Tuple[np.array, np.array]:
+              fraction_seed: int = None,
+              labels_to_remove: List = None,
+              crop_to_equal_distribution=False) -> Tuple[np.array, np.array]:
     """Loads csv data and split it into a signal and a label numpy array,
     respectively.
     Args:
         fraction: fraction of csv data to load, allows to speed up testing.
               Set to 1 (full data) by default
         fraction_seed: random seed to ensure same subset of data across tests
-            with same fraction"""
+            with same fraction
+        labels_to_remove: If you want to exclude some labels, supply them here
+        crop_to_equal_distribution: If set, the amount of data per category
+            will be limited to the amount of the smallest category"""
     df = pd.read_csv(filepath, header=None)
 
     # Ensure data is stored as expected: labels are stored in the last column (column 188)
     if not df.shape[1] == 188:
         raise ValueError('Data not formatted as expected, might produce bogus!!')
 
+    # remove unwanted data (if any)
+    if labels_to_remove:
+        df = df.loc[~df[187].isin(labels_to_remove)].copy()
+
+    # unskew data by limiting to amount of minimum category
+    if crop_to_equal_distribution:
+        min_count = df[187].value_counts().min()
+
+        dfs = []
+        for category in df[187].unique():
+            sub_df = df.loc[df[187] == category].copy()
+            frac = min_count / len(sub_df)
+            sub_df = sub_df.sample(frac=frac)
+            dfs.append(sub_df)
+
+        df = pd.concat(dfs)
+
     # Reduce data for faster training during testing
     kwargs = {'frac': fraction}
     if fraction_seed:
         kwargs['random_state'] = fraction_seed
-        df = df.sample(**kwargs)
+    df = df.sample(**kwargs)  # shuffle to avoid sorted input!
 
     signal_data = df[list(range(187))].to_numpy()
 
