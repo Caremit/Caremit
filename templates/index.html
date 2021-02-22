@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block content %}
+  {{ super() }}
+  <section class="download bg-info text-center" id="download">
+    <div class="container">
+      <div class="row">
+        <div class="col-md-8 mx-auto">
+          <h2 class="section-heading">Caremit</h2>
+          <h2>Welcome {{ user.get("name") }}!</h2>
+            {% if config.get("ENDPOINT") %}
+              <li><a href='/machinelearning'>analyze heart beat</a></li>
+            {% endif %}
+            <li><a href="/logout">Logout</a></li>
+          <footer style="text-align: right">Powered by MSAL Python {{ version }}</footer>
+        </div>
+      </div>
+    </div>
+  </section>
+{% endblock content %}

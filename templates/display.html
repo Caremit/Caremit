@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+{{ super() }}
+<section class="download bg-info text-center" id="download">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-8 mx-auto">
+                <h2 class="section-heading">Caremit</h2>
+                <a href="javascript:window.history.go(-1)">Back</a> <!-- Displayed on top of a potentially large JSON response, so it will remain visible -->
+                <h1>Graph API Call Result</h1>
+                <pre>{{ result |tojson(indent=4) }}</pre> <!-- Just a generic json viewer -->
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock content %}
