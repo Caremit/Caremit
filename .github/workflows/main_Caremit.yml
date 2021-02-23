@@ -1,11 +1,4 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-
 name: Build and deploy Python app to Azure Web App - Caremit
-
-env:
-  ACTIONS_STEP_DEBUG: true
-  WEBSITE_WEBDEPLOY_USE_SCM: true
 
 on:
   push:
@@ -13,35 +6,35 @@ on:
       - main
   workflow_dispatch:
 
+env:
+  AZURE_WEBAPP_NAME: Caremit
+  AZURE_WEBAPP_SLOT_NAME: production
+  AZURE_WEBAPP_PACKAGE_PATH: '.'         # set this to the path to your web app project, defaults to the repository root
+  PYTHON_VERSION: '3.8'                  # set this to the python version to use
+
 jobs:
   build-and-deploy:
+    name: Build and Deploy
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@master
-
-    - name: Set up Python version
+    - uses: actions/checkout@v1
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
       uses: actions/setup-python@v1
       with:
-        python-version: '3.8'
-    
+        python-version: ${{ env.PYTHON_VERSION }}
     - name: Install dependencies
-      # taken from the official azure github action https://github.com/Azure/actions-workflow-samples/blob/master/AppService/python-webapp-on-azure.yml
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-
-    - name: Build using AppService-Build
-      uses: azure/appservice-build@v2
-      with:
-        platform: python
-        platform-version: '3.8'
-        WEBSITE_WEBDEPLOY_USE_SCM: true
-
-    - name: 'Deploy to Azure Web App'
+    # - name: Build using AppService-Build
+    #   uses: azure/appservice-build@v2
+    #   with:
+    #     platform: python
+    #     platform-version: ${{ env.PYTHON_VERSION }}
+    - name: Deploy Web App using GH Action azure/webapps-deploy
       uses: azure/webapps-deploy@v2
       with:
-        app-name: 'Caremit'
-        slot-name: 'production'
-        WEBSITE_WEBDEPLOY_USE_SCM: true
-        publish-profile: ${{ secrets.AzureAppService_PublishProfile_26cba59dfdaa49a69e5f172ffa930ef7 }}
+        app-name: ${{ env.AZURE_WEBAPP_NAME }}
+        slot-name: ${{ env.AZURE_WEBAPP_SLOT_NAME }}
+        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+        package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
