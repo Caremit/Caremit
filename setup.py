@@ -12,7 +12,7 @@ setup(name='caremit',
             'Flask>=1,<2',
             'flask-session~=0.3.2',
             'gunicorn',
-            'h5py==3.1.0',
+            'h5py==2.10.0',  # version required by tensorflow
             'ipykernel',
             'jedi==0.17.0',
             'keras',
