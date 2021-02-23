@@ -14,6 +14,8 @@ setup(name='caremit',
             'ipykernel',
             'jedi==0.17.0',
             'keras',
+            'matplotlib==2.2.2',  # version required by mpld3
+            'mpld3==0.5.2',
             'msal>=1.7,<2',
             'numpy',
             'pandas',
