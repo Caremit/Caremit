@@ -1,3 +1,7 @@
+
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 import uuid
 import requests
 from flask import Flask, render_template, flash, session, request, redirect, url_for
@@ -16,9 +20,6 @@ from pathlib import Path
 from caremit.preprocessing.kachuee_2018 import preprocess_kachuee_2018
 import mpld3
 # got hint from https://stackoverflow.com/questions/53684971/assertion-failed-flask-server-stops-after-script-is-run
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 plt.style.use('dark_background')
 
 
