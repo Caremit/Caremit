@@ -3,6 +3,10 @@
 
 name: Build and deploy Python app to Azure Web App - Caremit
 
+env:
+  ACTIONS_STEP_DEBUG: true
+  WEBSITE_WEBDEPLOY_USE_SCM: true
+
 on:
   push:
     branches:
@@ -22,6 +26,7 @@ jobs:
         python-version: '3.8'
     
     - name: Install dependencies
+      # taken from the official azure github action https://github.com/Azure/actions-workflow-samples/blob/master/AppService/python-webapp-on-azure.yml
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
@@ -31,10 +36,12 @@ jobs:
       with:
         platform: python
         platform-version: '3.8'
+        WEBSITE_WEBDEPLOY_USE_SCM: true
 
     - name: 'Deploy to Azure Web App'
       uses: azure/webapps-deploy@v2
       with:
         app-name: 'Caremit'
         slot-name: 'production'
+        WEBSITE_WEBDEPLOY_USE_SCM: true
         publish-profile: ${{ secrets.AzureAppService_PublishProfile_26cba59dfdaa49a69e5f172ffa930ef7 }}
