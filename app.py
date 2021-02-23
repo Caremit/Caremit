@@ -14,6 +14,21 @@ from io import StringIO, BytesIO
 import wfdb
 from pathlib import Path
 from caremit.preprocessing.kachuee_2018 import preprocess_kachuee_2018
+import mpld3
+# got hint from https://stackoverflow.com/questions/53684971/assertion-failed-flask-server-stops-after-script-is-run
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+plt.style.use('dark_background')
+
+
+BEAT_MAP = {
+    0: 'Normal beat (N)',
+    1: 'Premature or ectopic supraventricular beat (S)',
+    2: 'Premature ventricular contraction (V)',
+    3: 'Fusion of ventricular and normal beat (F)',
+    4: 'Unclassifiable beat (Q)'
+}
 
 app = Flask(__name__)
 app.config.from_object(app_config)
@@ -65,23 +80,20 @@ def machinelearning():
     if not session.get("user"):
         return redirect(url_for("landing"))
 
-    print(request.url)
-    print("request.files", request.files)
     # check if the post request has the file part
     if 'file' not in request.files:
-        flash('No file part')
-        print("No file part")
+        msg = 'No file part'
+        flash(msg); print(msg)
         return redirect(url_for("index"))
     files = request.files.getlist("file")
-    print("files", files)
     # if user does not select file, browser also
     # submit an empty part without filename
 
     if (len(files) != 2 
         or {Path(file.filename).suffix for file in files} != {'.dat', '.hea'}
         or len({Path(file.filename).stem for file in files}) != 1):
-
-        print("Nead exactly one XXX.dat file and one XXX.hea file where XXX needs to be the same.")
+        msg = "Nead exactly one XXX.dat file and one XXX.hea file where XXX needs to be the same."
+        flash(msg); print(msg)
         return redirect(url_for("index"))
 
     # taken from https://github.com/CVxTz/ECG_Heartbeat_Classification/blob/master/code/baseline_mitbih.py#L11-L19
@@ -99,19 +111,20 @@ def machinelearning():
     fs = record.fs
     segments, start_end = preprocess_kachuee_2018(single_signal, fs, heartbeat_position="left")
     data = segments[..., np.newaxis]
-    
+
     token = _get_token_from_cache(app_config.SCOPE)
     if not token:
         # not authorized, hence going back to login page
         return redirect(url_for("landing"))
 
     # speak to endpoint
-    graph_data = requests.post(
+    confidence_levels = requests.post(
         app_config.ENDPOINT,
         headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token['id_token']},
         data=json.dumps(data.tolist())
     ).json()
-    return render_template('display.html', user=session["user"], result=graph_data, version=msal.__version__)
+    html = create_plot_highest_conf(data, confidence_levels)
+    return render_template('display.html', user=session["user"], result=html, version=msal.__version__)
 
 def _load_cache():
     cache = msal.SerializableTokenCache()
@@ -140,6 +153,55 @@ def _get_token_from_cache(scope=None):
         result = cca.acquire_token_silent(scope, account=accounts[0])
         _save_cache(cache)
         return result
+
+
+def create_plot_highest_conf(signal_data: np.ndarray, confidence_levels):
+    """Plots the signal with the highest confidence per encountered
+    category, if the prediction was correct.
+    Raises if highest prediction per category was incorrect."""
+
+    confidence_levels_df = pd.DataFrame(confidence_levels)
+    confidence_levels_df['predicted_label'] = confidence_levels_df.idxmax(axis=1)
+    confidence_levels_df['confidence'] = confidence_levels_df.loc[:, list(range(5))].max(axis=1)
+    
+    def keep_max_confidence_only(df_group):
+        max_idx = df_group['confidence'].idxmax()
+        subdf = df_group.loc[max_idx:max_idx, :]
+        subdf['max_idx'] = max_idx
+        subdf['count'] = len(df_group)
+        return subdf
+    
+    overview = confidence_levels_df \
+        .loc[:, ['predicted_label', 'confidence']] \
+        .groupby('predicted_label') \
+        .apply(keep_max_confidence_only)
+    
+    fig, axs = plt.subplots(len(overview), 1, sharey=True)
+    if not isinstance(axs, np.ndarray):
+        axs = [axs]
+    for ax, row in zip(axs, overview.itertuples()):
+        signal = signal_data[row.max_idx]
+        ax.plot(signal, color="cyan")
+        ax.set_title(f"Representative signal for category '{BEAT_MAP[row.predicted_label]}'")
+        ax.set_xlabel("time in ms")
+        ax.set_ylabel("relative signal strength")
+        [t.set_color('white') for t in ax.xaxis.get_ticklines()]
+        [t.set_color('white') for t in ax.xaxis.get_ticklabels()]
+        ax.grid(color=(0.01, 0.01, 0.01), linestyle=":", linewidth=0.5)
+
+    fig.tight_layout()
+
+    html_overview = overview.to_html()
+    html_plot = mpld3.fig_to_html(fig)
+    return f"""
+        <div class="row justify-content-center align-self-center">
+            {html_overview}
+        </div>
+        <div class="row overflow-auto">
+            {html_plot}
+        </div>
+    """
+        
 
 app.jinja_env.globals.update(_build_auth_code_flow=_build_auth_code_flow)  # Used in template
 
