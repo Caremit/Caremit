@@ -176,15 +176,16 @@ def create_plot_highest_conf(signal_data: np.ndarray, confidence_levels):
         .groupby('predicted_label') \
         .apply(keep_max_confidence_only)
     
-    fig, axs = plt.subplots(len(overview), 1, sharey=True)
+    fig, axs = plt.subplots(len(overview), 1, sharex=True)
     if not isinstance(axs, np.ndarray):
         axs = [axs]
     for ax, row in zip(axs, overview.itertuples()):
         signal = signal_data[row.max_idx]
         ax.plot(signal, color="cyan")
         ax.set_title(f"Representative signal for category '{BEAT_MAP[row.predicted_label]}'")
-        ax.set_xlabel("time in ms")
         ax.set_ylabel("relative signal strength")
+        if ax is axs[-1]:
+            ax.set_xlabel("time in ms")
         [t.set_color('white') for t in ax.xaxis.get_ticklines()]
         [t.set_color('white') for t in ax.xaxis.get_ticklabels()]
         ax.grid(color=(0.01, 0.01, 0.01), linestyle=":", linewidth=0.5)
@@ -197,6 +198,7 @@ def create_plot_highest_conf(signal_data: np.ndarray, confidence_levels):
         <div class="row justify-content-center align-self-center">
             {html_overview}
         </div>
+        <hr>
         <div class="row overflow-auto">
             {html_plot}
         </div>
