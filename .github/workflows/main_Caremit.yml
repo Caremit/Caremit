@@ -24,9 +24,9 @@ jobs:
         python-version: ${{ env.PYTHON_VERSION }}
     - name: Install dependencies
       run: |
-        python -m venv venv
-        venv/bin/pip install --upgrade pip
-        venv/bin/pip install -r requirements.txt
+        python -m venv .venv
+        .venv/bin/pip install --upgrade pip
+        .venv/bin/pip install -r requirements.txt
     - name: Build using AppService-Build
       uses: azure/appservice-build@v2
       with:
