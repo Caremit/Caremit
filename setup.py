@@ -11,6 +11,8 @@ setup(name='caremit',
       install_requires=[
             'Flask>=1,<2',
             'flask-session~=0.3.2',
+            'gunicorn',
+            'h5py==3.1.0',
             'ipykernel',
             'jedi==0.17.0',
             'keras',
