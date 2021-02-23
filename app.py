@@ -90,8 +90,8 @@ def machinelearning():
     # if user does not select file, browser also
     # submit an empty part without filename
 
-    if (len(files) != 2 
-        or {Path(file.filename).suffix for file in files} != {'.dat', '.hea'}
+    if (len(files) < 2 
+        or not {'.dat', '.hea'}.issubset({Path(file.filename).suffix for file in files})
         or len({Path(file.filename).stem for file in files}) != 1):
         msg = "Nead exactly one XXX.dat file and one XXX.hea file where XXX needs to be the same."
         flash(msg); print(msg)
