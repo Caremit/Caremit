@@ -10,7 +10,7 @@ In order to install this package in editable mode, do the following:
 
 enjoy :)
 
-# Deployment
+# Model Deployment
 To deploy a trained model to a public azure endpoint:
 1. be in the lucky position that someone set up a cozy azureml environment for you
 2. Um, are you still there?
